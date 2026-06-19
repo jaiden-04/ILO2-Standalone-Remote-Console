@@ -73,6 +73,7 @@ public class telnet extends Panel implements Runnable, MouseListener, FocusListe
     private boolean dvc_encryption = false;
 
     private boolean seized = false;
+    private String disconnect_reason = null;
 
     private LocaleTranslator translator = new LocaleTranslator();
 
@@ -285,6 +286,7 @@ public class telnet extends Panel implements Runnable, MouseListener, FocusListe
             this.screen.start_updates();
 
             this.connected = 1;
+            this.disconnect_reason = null;
             this.host = paramString1;
             this.login = paramString2;
             this.port = paramInt1;
@@ -537,6 +539,7 @@ public class telnet extends Panel implements Runnable, MouseListener, FocusListe
         } catch (Exception e) {
             System.out.println("telnet.run() Exception, class:" + e.getClass() + "  msg:" + e.getMessage());
             e.printStackTrace();
+            this.disconnect_reason = e.getClass().getSimpleName() + ": " + e.getMessage();
         } finally {
             if (!this.seized) {
                 this.screen.show_text("Offline");
@@ -545,6 +548,13 @@ public class telnet extends Panel implements Runnable, MouseListener, FocusListe
                 set_status(3, "");
                 set_status(4, "");
                 disconnect();
+                final String reason = this.disconnect_reason;
+                new Thread(() -> {
+                    String msg = reason != null
+                        ? "The remote console session was disconnected.\n\nReason: " + reason
+                        : "The remote console session was disconnected by the server.";
+                    new OkCancelDialog(msg, true);
+                }).start();
             }
         }
     }
