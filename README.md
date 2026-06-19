@@ -51,16 +51,6 @@ java -Djava.security.properties=java.security -jar build/libs/ILO2RemCon.jar -c 
 
 Running without arguments will try `config.properties` in the current working directory before showing the login UI.
 
-### Windows (PowerShell)
-
-`set` is not a valid PowerShell command. Use `$env:` syntax instead:
-
-```powershell
-$env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-11.0.31.11-hotspot"
-.\gradlew.bat jar
-& "$env:JAVA_HOME\bin\java.exe" "-Djava.security.properties=java.security" -jar build\libs\ILO2RemCon.jar
-```
-
 A `data.cook` file is created to cache the session cookie between runs. Delete it if you change credentials or encounter auth errors.
 
 ## Fixes in this fork
