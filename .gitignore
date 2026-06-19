@@ -30,3 +30,10 @@ build
 # Project specific
 data.cook
 config.properties
+
+# Extracted/compiled artifacts from manual JAR patching
+*.class
+META-INF/
+com/
+patch_work/
+output.txt
