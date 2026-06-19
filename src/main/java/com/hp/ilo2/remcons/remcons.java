@@ -68,6 +68,7 @@ public class remcons extends Applet implements ActionListener, ItemListener, Tim
 
 
     public int timeout_countdown;
+    private boolean timeout_warning_shown = false;
 
     private int port_num = 23;
     private boolean translate = false;
@@ -231,6 +232,7 @@ public class remcons extends Applet implements ActionListener, ItemListener, Tim
         System.out.println("Applet started...");
 
         this.timeout_countdown = this.session_timeout;
+        this.timeout_warning_shown = false;
         start_session();
         if (this.session_timeout == INFINITE_TIMEOUT)
             System.out.println("Remote Console inactivity timeout = infinite."); else {
@@ -250,6 +252,7 @@ public class remcons extends Applet implements ActionListener, ItemListener, Tim
         {
             this.session.UI_dirty = false;
             this.timeout_countdown = this.session_timeout;
+            this.timeout_warning_shown = false;
 
             this.session.send_keep_alive_msg();
         }
@@ -257,6 +260,27 @@ public class remcons extends Applet implements ActionListener, ItemListener, Tim
         {
             this.session.send_auto_alive_msg();
             this.timeout_countdown -= KEEP_ALIVE_INTERVAL;
+
+            if (this.timeout_countdown <= 60 && !this.timeout_warning_shown && this.session_timeout != INFINITE_TIMEOUT)
+            {
+                this.timeout_warning_shown = true;
+                final remcons self = this;
+                new Thread(() -> {
+                    OkCancelDialog dlg = new OkCancelDialog(
+                        "Your remote console session will expire in 60 seconds due to inactivity.\n\nClick \"Ok\" to stay connected, or \"Cancel\" to disconnect now.",
+                        true
+                    );
+                    if (dlg.result()) {
+                        synchronized (self.session) {
+                            self.timeout_countdown = self.session_timeout;
+                            self.timeout_warning_shown = false;
+                            self.session.send_keep_alive_msg();
+                        }
+                    } else {
+                        self.stop_session();
+                    }
+                }).start();
+            }
 
             if (this.timeout_countdown <= 0)
             {
