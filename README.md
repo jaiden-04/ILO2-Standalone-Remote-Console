@@ -29,7 +29,7 @@ The JAR is output to `build/libs/ILO2RemCon.jar`.
 
 ## Usage
 
-Because even on the latest firmware (2.33 as of 2021-04-16), due to hardware limitations, iLO2 does not support modern TLS. The included `java.security` file relaxes the necessary restrictions. When running from the JAR directly, pass it with `-Djava.security.properties=java.security`. The prebuilt exe handles this automatically.
+Because even on the latest firmware (2.33 as of 2026-06-19), due to hardware limitations, iLO2 does not support modern TLS. The included `java.security` file relaxes the necessary restrictions. When running from the JAR directly, pass it with `-Djava.security.properties=java.security`. The prebuilt exe handles this automatically.
 
 If you still get a TLS error, the certificate on your iLO may need to be regenerated through the iLO web interface.
 
