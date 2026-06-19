@@ -315,7 +315,10 @@ public class Main {
                 String line;
                 String lastline = "";
                 while ((line = br.readLine()) != null) {
-                    cookieManager.getCookieStore().add(new URI("https://" + hostname), new HttpCookie(line.split("=")[0], line.split("=")[1]));
+                    int eq = line.indexOf('=');
+                    if (eq > 0) {
+                        cookieManager.getCookieStore().add(new URI("https://" + hostname), new HttpCookie(line.substring(0, eq), line.substring(eq + 1)));
+                    }
                     lastline = line;
                 }
 
