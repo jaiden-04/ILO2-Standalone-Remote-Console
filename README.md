@@ -3,6 +3,8 @@ ILO2 Java Remote console as Standalone version
 
 Tested with Java 8 and Java 11. Hangs for an unknown reason on Java 15.
 
+> **Windows security warning:** Windows may flag the downloaded exe as unrecognised because it is not code-signed. This is expected for unsigned open source software. If you see a SmartScreen prompt, click "More info" then "Run anyway" to proceed. If you are not comfortable doing that, you can build the exe yourself from the source code using the instructions in the Building section below. The full source is available in this repository.
+
 ## What is this?
 
 This tool connects to an HP iLO 2 management controller and opens the remote console, a full hardware KVM over IP. You see whatever is physically on the server's display regardless of OS, including BIOS/UEFI, bootloaders, and graphical desktops.
