@@ -1752,7 +1752,7 @@ public class cim extends telnet implements MouseSyncListener {
                 localImage = localToolkit.createImage(cursor_none);
                 break;
             case 3:
-                arrayOfInt = new int[21*12];
+                arrayOfInt = new int[32*32];
                 arrayOfInt[0] = (arrayOfInt[1] = arrayOfInt[32] = arrayOfInt[33] = W);
 
                 localMemoryImageSource = new MemoryImageSource(32, 32, arrayOfInt, 0, 32);
@@ -1760,7 +1760,7 @@ public class cim extends telnet implements MouseSyncListener {
                 break;
 
             case 4:
-                arrayOfInt = new int[21*12];
+                arrayOfInt = new int[32*32];
                 for (int row = 0; row < 21; row++) {
                     for (int col = 0; col < 12; col++) {
                         arrayOfInt[(col + row * 32)] = cursor_outline[(col + row * 12)];
