@@ -73,3 +73,11 @@ Even when the cookie manager captured a cookie, it was never assigned to `superc
 **3. Stage3 tried to parse `<PARAM>` tags that don't exist in the raw HTML**
 
 The applet parameters are written by `document.writeln()` in JavaScript, so they only exist in the browser's rendered DOM and not in the raw HTTP response. The fix reads all values directly from the JavaScript variable assignments (`info0="..."`, `info7=30`, etc.) and extracts the JAR name from the `ARCHIVE=` attribute instead.
+
+**4. Cached session cookie failed to reload on subsequent runs**
+
+`data.cook` stores cookies in `name=value` format, but the session cookie value contains `:::` with extra colons and the reload used `split("=")[1]` which truncated anything after the first `=`. The fix uses `indexOf('=')` to split only on the first equals sign.
+
+**5. Selecting the outline mouse cursor crashed the applet**
+
+`createCursor` allocated `int[21*12]` (252 elements) for the dot and outline cursor image buffers, but then indexed into them using `col + row * 32` (row stride for a 32x32 image). At row 8 the index exceeds 252 and throws `ArrayIndexOutOfBoundsException`. The buffer is now correctly sized to `int[32*32]`.
