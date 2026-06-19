@@ -7,6 +7,7 @@
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.*;
 import java.io.*;
 import java.net.*;
 import java.security.Security;
@@ -262,25 +263,138 @@ public class Main {
     }
 
 
+    private static void connect(JLabel status, JFrame loginFrame) {
+        new Thread(() -> {
+            try {
+                SwingUtilities.invokeLater(() -> status.setText("Checking session cache..."));
+                try (BufferedReader br = new BufferedReader(new FileReader("data.cook"))) {
+                    String line;
+                    String lastline = "";
+                    while ((line = br.readLine()) != null) {
+                        int eq = line.indexOf('=');
+                        if (eq > 0) {
+                            cookieManager.getCookieStore().add(new URI("https://" + hostname), new HttpCookie(line.substring(0, eq), line.substring(eq + 1)));
+                        }
+                        lastline = line;
+                    }
+                    if (!isValid(lastline)) {
+                        SwingUtilities.invokeLater(() -> status.setText("Authenticating..."));
+                        Stage1();
+                        Stage2();
+                    } else {
+                        supercookie = lastline;
+                    }
+                } catch (FileNotFoundException e) {
+                    SwingUtilities.invokeLater(() -> status.setText("Authenticating..."));
+                    Stage1();
+                    Stage2();
+                }
+
+                if (supercookie.isEmpty()) {
+                    SwingUtilities.invokeLater(() -> status.setText("Error: authentication failed. Check credentials."));
+                    return;
+                }
+
+                SwingUtilities.invokeLater(() -> status.setText("Opening remote console..."));
+                Stage3();
+
+                remcons rmc = new remcons(hmap);
+                rmc.SetHost(hostname);
+
+                SwingUtilities.invokeLater(() -> {
+                    if (loginFrame != null) loginFrame.dispose();
+                    JFrame jf = new JFrame();
+                    jf.setBounds(0, 0, 1070, 880);
+                    jf.setTitle(hostname + " - iLO2");
+                    jf.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+                    jf.getContentPane().add(rmc);
+                    jf.setVisible(true);
+                    rmc.init();
+                    rmc.start();
+                });
+            } catch (Exception e) {
+                e.printStackTrace();
+                String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+                SwingUtilities.invokeLater(() -> status.setText("Error: " + msg));
+            }
+        }).start();
+    }
+
+    private static void showLoginUI() {
+        JFrame frame = new JFrame("iLO 2 Remote Console");
+        frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+        frame.setResizable(false);
+
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
+        GridBagConstraints c = new GridBagConstraints();
+        c.insets = new Insets(4, 4, 4, 4);
+        c.fill = GridBagConstraints.HORIZONTAL;
+
+        JTextField hostField = new JTextField(20);
+        JTextField userField = new JTextField(20);
+        JPasswordField passField = new JPasswordField(20);
+        JButton connectBtn = new JButton("Connect");
+        JLabel statusLabel = new JLabel(" ");
+        statusLabel.setForeground(Color.DARK_GRAY);
+
+        c.gridx = 0; c.gridy = 0; c.weightx = 0; panel.add(new JLabel("Host:"), c);
+        c.gridx = 1; c.weightx = 1; panel.add(hostField, c);
+        c.gridx = 0; c.gridy = 1; c.weightx = 0; panel.add(new JLabel("Username:"), c);
+        c.gridx = 1; c.weightx = 1; panel.add(userField, c);
+        c.gridx = 0; c.gridy = 2; c.weightx = 0; panel.add(new JLabel("Password:"), c);
+        c.gridx = 1; c.weightx = 1; panel.add(passField, c);
+        c.gridx = 0; c.gridy = 3; c.gridwidth = 2; c.weightx = 1; panel.add(connectBtn, c);
+        c.gridy = 4; panel.add(statusLabel, c);
+
+        ActionListener onConnect = e -> {
+            String host = hostField.getText().trim();
+            String user = userField.getText().trim();
+            String pass = new String(passField.getPassword());
+            if (host.isEmpty() || user.isEmpty() || pass.isEmpty()) {
+                statusLabel.setText("Please fill in all fields.");
+                return;
+            }
+            connectBtn.setEnabled(false);
+            hostField.setEnabled(false);
+            userField.setEnabled(false);
+            passField.setEnabled(false);
+            setHostname(host);
+            username = user;
+            password = pass;
+            connect(statusLabel, frame);
+        };
+
+        connectBtn.addActionListener(onConnect);
+        passField.addActionListener(onConnect);
+
+        frame.setContentPane(panel);
+        frame.pack();
+        frame.setLocationRelativeTo(null);
+        frame.setVisible(true);
+    }
+
     public static void main(String[] args) {
         Optional<String> configPath = Optional.empty();
+        boolean useUI = false;
 
         switch (args.length) {
             case 0:
-                // <no args>
-                // try the default config location
-                configPath = Optional.of(DEFAULT_CONFIG_PATH);
+                if (new File(DEFAULT_CONFIG_PATH).exists()) {
+                    configPath = Optional.of(DEFAULT_CONFIG_PATH);
+                } else {
+                    useUI = true;
+                }
                 break;
             case 2:
-                // -c <path>
                 if (args[0].equals("-c")) {
                     configPath = Optional.of(args[1]);
                 } else {
                     System.out.println(USAGE_TEXT);
+                    return;
                 }
                 break;
             case 3:
-                // <Hostname or IP> <Username> <Password>
                 setHostname(args[0]);
                 username = args[1];
                 password = args[2];
@@ -298,7 +412,6 @@ public class Main {
             try (FileInputStream fis = new FileInputStream(configPath.get())) {
                 Properties p = new Properties();
                 p.load(fis);
-
                 setHostname(p.getProperty("hostname"));
                 username = p.getProperty("username");
                 password = p.getProperty("password");
@@ -309,51 +422,12 @@ public class Main {
             }
         }
 
-        try {
-            try (BufferedReader br = new BufferedReader(new FileReader("data.cook"))) {
-                System.out.println("Found datastore");
-                String line;
-                String lastline = "";
-                while ((line = br.readLine()) != null) {
-                    int eq = line.indexOf('=');
-                    if (eq > 0) {
-                        cookieManager.getCookieStore().add(new URI("https://" + hostname), new HttpCookie(line.substring(0, eq), line.substring(eq + 1)));
-                    }
-                    lastline = line;
-                }
-
-                if (!isValid(lastline)) {
-                    System.out.println("Datastore not valid, requesting Cookie");
-                    Stage1();
-                    Stage2();
-                } else {
-                    supercookie = lastline;
-                }
-            } catch (FileNotFoundException e) {
-                System.out.println("Couldn't find datastore, requesting Cookie");
-                Stage1();
-                Stage2();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            Stage3();
-            //hmap.put("IPADDR", hostname);
-            //hmap.put("DEBUG", "suckAdIck");
-
-            remcons rmc = new remcons(hmap);
-            rmc.SetHost(hostname);
-
-            JFrame jf = new JFrame();
-            Container c = jf.getContentPane();
-            jf.setBounds(0, 0, 1070, 880);
-            jf.setTitle(hostname + " - iLO2");
-            jf.setVisible(true);
-            jf.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-            c.add(rmc);
-            rmc.init();
-            rmc.start();
-        } catch (Exception e) {
-            e.printStackTrace();
+        if (useUI) {
+            SwingUtilities.invokeLater(Main::showLoginUI);
+            return;
         }
+
+        JLabel headless = new JLabel();
+        connect(headless, null);
     }
 }

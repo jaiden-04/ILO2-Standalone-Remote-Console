@@ -58,6 +58,12 @@ Remove-Item -Force data.cook -ErrorAction SilentlyContinue
 
 A `data.cook` file is created to cache the session cookie between runs. Delete it if you change credentials or encounter auth errors.
 
+## Added features
+
+**Login UI**
+
+Running the JAR with no arguments and no `config.properties` now shows a simple login dialog instead of exiting. Enter the host, username, and password, then press Connect (or hit Enter in the password field). A status line shows progress through the connection stages. The login window closes automatically when the remote console opens. Passing credentials as arguments or via a config file still works exactly as before and skips the UI entirely.
+
 ## Fixes in this fork
 
 The original code had two bugs that caused a crash on startup:
