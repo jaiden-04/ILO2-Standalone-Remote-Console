@@ -11,7 +11,7 @@ This tool connects to an HP iLO 2 management controller and opens the remote con
 
 ## Requirements
 
-- Java 8 or Java 11 (not 15+)
+- Java 11 or Java 25
 - Gradle (or use the included `gradlew`/`gradlew.bat` wrapper, no separate install needed)
 
 ## Building
