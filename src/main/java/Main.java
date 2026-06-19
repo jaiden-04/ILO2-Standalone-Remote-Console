@@ -108,10 +108,8 @@ public class Main {
         con.setRequestProperty("Referer", loginURL);
         con.setRequestProperty("Host", hostname);
         con.setRequestProperty("Accept-Language", "de-DE");
-        //Cookie:
-        con.setDoOutput(true);
 
-        Base64.Encoder enc2 = Base64.getMimeEncoder(); //Authenticate
+        Base64.Encoder enc2 = Base64.getMimeEncoder();
         String cookieVal = String.format("hp-iLO-Login=%s:%s:%s:%s",
                 sessionIndex,
                 enc2.encodeToString(username.getBytes()),
@@ -119,7 +117,6 @@ public class Main {
                 sessionKey
         );
         con.setRequestProperty("Cookie", cookieVal);
-
 
         BufferedReader in = new BufferedReader(
                 new InputStreamReader(con.getInputStream()));
@@ -129,11 +126,35 @@ public class Main {
         } // discard
         in.close();
 
-        List<HttpCookie> cookies = cookieManager.getCookieStore().getCookies();
+        // Extract Set-Cookie headers directly from the response
         PrintWriter writer = new PrintWriter(COOKIE_FILE, "UTF-8");
-        for (HttpCookie cookie : cookies) {
-            System.out.format("Session cookie: %s: %s\n", cookie.getDomain(), cookie);
-            writer.println(cookie.toString().replace("\"", ""));
+        int i = 1;
+        String headerKey;
+        while ((headerKey = con.getHeaderFieldKey(i)) != null) {
+            if (headerKey.equalsIgnoreCase("Set-Cookie")) {
+                String raw = con.getHeaderField(i);
+                System.out.println("Set-Cookie: " + raw);
+                // raw is like "hp-iLO-Session=VALUE; Path=/; Secure" — take just name=value
+                String nameValue = raw.split(";")[0].trim().replace("\"", "");
+                writer.println(nameValue);
+                if (nameValue.startsWith("hp-iLO-Session=")) {
+                    supercookie = nameValue;
+                    System.out.println("Using session cookie: " + supercookie);
+                }
+            }
+            i++;
+        }
+
+        // Fall back to cookieManager if headers gave us nothing
+        if (supercookie.isEmpty()) {
+            for (HttpCookie cookie : cookieManager.getCookieStore().getCookies()) {
+                System.out.format("CookieManager cookie: %s: %s\n", cookie.getDomain(), cookie);
+                String cookieStr = cookie.toString().replace("\"", "");
+                writer.println(cookieStr);
+                if (cookie.getName().equals("hp-iLO-Session")) {
+                    supercookie = cookieStr;
+                }
+            }
         }
         writer.close();
 
@@ -141,6 +162,14 @@ public class Main {
 
 
     private final static HashMap<String, String> hmap = new HashMap<>();
+
+    private static String parseQuoted(String src, String key) {
+        return src.split(key + "=\"")[1].split("\"")[0];
+    }
+
+    private static String parseUnquoted(String src, String key) {
+        return src.split(key + "=")[1].split("[;,\\s]")[0];
+    }
 
     private static void Stage3() throws Exception {
         // https://" + hostname + "/drc2fram.htm?restart=1
@@ -175,25 +204,26 @@ public class Main {
 
         String res = response.toString();
 
-        hmap.put("INFO0", res.split("info0=\"")[1].split("\";")[0]);
-        hmap.put("INFO1", res.split("info1=\"")[1].split("\";")[0]);
-        hmap.put("INFO3", res.split("info3=\"")[1].split("\";")[0]);
-        hmap.put("INFO6", res.split("info6=\"")[1].split("\";")[0]);
-        hmap.put("INFO7", res.split("info7=")[1].split(";")[0]);
-        hmap.put("INFO8", res.split("info8=\"")[1].split("\";")[0]);
+        hmap.put("INFO0", parseQuoted(res, "info0"));
+        hmap.put("INFO1", parseQuoted(res, "info1"));
+        hmap.put("INFO3", parseQuoted(res, "info3"));
+        hmap.put("INFO6", parseQuoted(res, "info6"));
+        hmap.put("INFO7", parseUnquoted(res, "info7"));
+        hmap.put("INFO8", parseQuoted(res, "info8"));
 
-        hmap.put("INFOA", res.split("infoa=\"")[1].split("\";")[0]);
-        hmap.put("INFOB", res.split("infob=\"")[1].split("\";")[0]);
-        hmap.put("INFOC", res.split("infoc=\"")[1].split("\";")[0]);
-        hmap.put("INFOD", res.split("infod=\"")[1].split("\";")[0]);
+        hmap.put("INFOA", parseQuoted(res, "infoa"));
+        hmap.put("INFOB", parseQuoted(res, "infob"));
+        hmap.put("INFOC", parseQuoted(res, "infoc"));
+        hmap.put("INFOD", parseQuoted(res, "infod"));
 
-        hmap.put("INFOM", res.split("infom=")[1].split(";")[0]);
-        hmap.put("INFOMM", res.split("infomm=")[1].split(";")[0]);
+        hmap.put("INFOM", parseUnquoted(res, "infom"));
+        hmap.put("INFOMM", parseUnquoted(res, "infomm"));
 
-        hmap.put("INFON", res.split("infon=")[1].split(";")[0]);
-        hmap.put("INFOO", res.split("infoo=\"")[1].split("\";")[0]);
+        hmap.put("INFON", parseUnquoted(res, "infon"));
+        hmap.put("INFOO", parseQuoted(res, "infoo"));
 
-        hmap.put("CABBASE", res.split("<PARAM NAME=CABBASE VALUE=")[1].split(">\"")[0]);
+        // JAR name comes from ARCHIVE= in the document.writeln applet tag
+        hmap.put("CABBASE", res.split("ARCHIVE=")[1].split(" ")[0]);
 
         System.out.println("CABBASE = " + hmap.get("CABBASE"));
     }
