@@ -39,6 +39,8 @@ public class Main {
     private static final String COOKIE_FILE = "data.cook";
 
     private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; WOW64; Trident/7.0; rv:11.0) like Gecko";
+    private static final String VERSION = "v1.2";
+    private static final String RELEASES_API = "https://api.github.com/repos/jaiden-04/ILO2-Standalone-Remote-Console/releases/latest";
 
 
     private static String username = "";
@@ -149,8 +151,8 @@ public class Main {
         // Fall back to cookieManager if headers gave us nothing
         if (supercookie.isEmpty()) {
             for (HttpCookie cookie : cookieManager.getCookieStore().getCookies()) {
-                System.out.format("CookieManager cookie: %s: %s\n", cookie.getDomain(), cookie);
-                String cookieStr = cookie.toString().replace("\"", "");
+                String cookieStr = cookie.getName() + "=" + cookie.getValue();
+                System.out.format("CookieManager cookie: %s\n", cookieStr);
                 writer.println(cookieStr);
                 if (cookie.getName().equals("hp-iLO-Session")) {
                     supercookie = cookieStr;
@@ -263,7 +265,8 @@ public class Main {
     }
 
 
-    private static void connect(JLabel status, JFrame loginFrame) {
+    private static void connect(JLabel status, JFrame loginFrame, Runnable onFailure) {
+        supercookie = "";
         new Thread(() -> {
             try {
                 SwingUtilities.invokeLater(() -> status.setText("Checking session cache..."));
@@ -291,7 +294,10 @@ public class Main {
                 }
 
                 if (supercookie.isEmpty()) {
-                    SwingUtilities.invokeLater(() -> status.setText("Error: authentication failed. Check credentials."));
+                    SwingUtilities.invokeLater(() -> {
+                        status.setText("Error: authentication failed, check credentials");
+                        if (onFailure != null) onFailure.run();
+                    });
                     return;
                 }
 
@@ -312,11 +318,53 @@ public class Main {
                     rmc.init();
                     rmc.start();
                 });
+            } catch (java.net.ConnectException e) {
+                e.printStackTrace();
+                SwingUtilities.invokeLater(() -> {
+                    status.setText("Error: Connection timed out, check host");
+                    if (onFailure != null) onFailure.run();
+                });
+            } catch (java.net.UnknownHostException e) {
+                e.printStackTrace();
+                SwingUtilities.invokeLater(() -> {
+                    status.setText("Error: Unknown host, check address");
+                    if (onFailure != null) onFailure.run();
+                });
             } catch (Exception e) {
                 e.printStackTrace();
                 String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
-                SwingUtilities.invokeLater(() -> status.setText("Error: " + msg));
+                SwingUtilities.invokeLater(() -> {
+                    status.setText("Error: " + msg);
+                    if (onFailure != null) onFailure.run();
+                });
             }
+        }).start();
+    }
+
+    private static void checkForUpdate(JLabel updateLabel) {
+        new Thread(() -> {
+            try {
+                HttpURLConnection con = (HttpURLConnection) new URL(RELEASES_API).openConnection();
+                con.setRequestProperty("Accept", "application/vnd.github+json");
+                con.setConnectTimeout(4000);
+                con.setReadTimeout(4000);
+                BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = in.readLine()) != null) sb.append(line);
+                in.close();
+                String body = sb.toString();
+                int idx = body.indexOf("\"tag_name\":");
+                if (idx != -1) {
+                    String tag = body.substring(idx + 12, body.indexOf("\"", idx + 13));
+                    if (!tag.equals(VERSION)) {
+                        SwingUtilities.invokeLater(() -> {
+                            updateLabel.setText("New version available: " + tag);
+                            updateLabel.setForeground(new Color(180, 100, 0));
+                        });
+                    }
+                }
+            } catch (Exception ignored) {}
         }).start();
     }
 
@@ -326,16 +374,17 @@ public class Main {
         frame.setResizable(false);
 
         JPanel panel = new JPanel(new GridBagLayout());
-        panel.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
+        panel.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
         GridBagConstraints c = new GridBagConstraints();
-        c.insets = new Insets(4, 4, 4, 4);
+        c.insets = new Insets(3, 4, 3, 4);
         c.fill = GridBagConstraints.HORIZONTAL;
 
-        JTextField hostField = new JTextField(20);
-        JTextField userField = new JTextField(20);
-        JPasswordField passField = new JPasswordField(20);
+        JTextField hostField = new JTextField(16);
+        JTextField userField = new JTextField(16);
+        JPasswordField passField = new JPasswordField(16);
         JButton connectBtn = new JButton("Connect");
         JLabel statusLabel = new JLabel(" ");
+        statusLabel.setFont(statusLabel.getFont().deriveFont(Font.PLAIN, 11f));
         statusLabel.setForeground(Color.DARK_GRAY);
 
         c.gridx = 0; c.gridy = 0; c.weightx = 0; panel.add(new JLabel("Host:"), c);
@@ -345,24 +394,30 @@ public class Main {
         c.gridx = 0; c.gridy = 2; c.weightx = 0; panel.add(new JLabel("Password:"), c);
         c.gridx = 1; c.weightx = 1; panel.add(passField, c);
         c.gridx = 0; c.gridy = 3; c.gridwidth = 2; c.weightx = 1; panel.add(connectBtn, c);
-        c.gridy = 4; panel.add(statusLabel, c);
+        c.gridy = 4; c.insets = new Insets(2, 4, 2, 4); panel.add(statusLabel, c);
 
         ActionListener onConnect = e -> {
             String host = hostField.getText().trim();
             String user = userField.getText().trim();
             String pass = new String(passField.getPassword());
             if (host.isEmpty() || user.isEmpty() || pass.isEmpty()) {
-                statusLabel.setText("Please fill in all fields.");
+                statusLabel.setText("Please fill in all fields");
                 return;
             }
             connectBtn.setEnabled(false);
             hostField.setEnabled(false);
             userField.setEnabled(false);
             passField.setEnabled(false);
+            statusLabel.setForeground(Color.DARK_GRAY);
             setHostname(host);
             username = user;
             password = pass;
-            connect(statusLabel, frame);
+            connect(statusLabel, frame, () -> {
+                connectBtn.setEnabled(true);
+                hostField.setEnabled(true);
+                userField.setEnabled(true);
+                passField.setEnabled(true);
+            });
         };
 
         connectBtn.addActionListener(onConnect);
@@ -372,6 +427,7 @@ public class Main {
         frame.pack();
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
+        checkForUpdate(statusLabel);
     }
 
     public static void main(String[] args) {
@@ -428,6 +484,6 @@ public class Main {
         }
 
         JLabel headless = new JLabel();
-        connect(headless, null);
+        connect(headless, null, null);
     }
 }
