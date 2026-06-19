@@ -1,7 +1,7 @@
 # ILO2RemoteConsole
 ILO2 Java Remote console as Standalone version
 
-Tested with Java 8 and Java 11. Hangs for an unknown reason on Java 15.
+Tested with Java 11 and Java 25. The prebuilt exe includes a bundled JRE and does not require Java to be installed separately.
 
 > **Windows security warning:** Windows may flag the downloaded exe as unrecognised because it is not code-signed. This is expected for unsigned open source software. If you see a SmartScreen prompt, click "More info" then "Run anyway" to proceed. If you are not comfortable doing that, you can build the exe yourself from the source code using the instructions in the Building section below. The full source is available in this repository.
 
