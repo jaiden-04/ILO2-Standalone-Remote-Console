@@ -1,7 +1,7 @@
 # ILO2RemoteConsole
 ILO2 Java Remote console as standalone version
 
-Tested with Java 11 and Java 25. The prebuilt exe includes a bundled JRE and does not require Java to be installed separately.
+Tested with Java 17, Java 21 and Java 25. The prebuilt exe includes a bundled JRE and does not require Java to be installed separately.
 
 > **Windows security warning:** Windows may flag the downloaded exe as unrecognised because it is not code-signed. This is expected for unsigned open source software. If you see a SmartScreen prompt, click "More info" then "Run anyway" to proceed. If you are not comfortable doing that, you can build the exe yourself from the source code using the instructions in the Building section below. The full source is available in this repository.
 
@@ -11,7 +11,7 @@ This tool connects to an HP iLO 2 management controller and opens the remote con
 
 ## Requirements
 
-- Java 11 or Java 25 (building from source only; the prebuilt exe includes a bundled JRE)
+- Java 17, Java 21 or Java 25 (building from source only; the prebuilt exe includes a bundled JRE)
 - Gradle (or use the included `gradlew`/`gradlew.bat` wrapper, no separate install needed)
 
 ## Prebuilt exe
